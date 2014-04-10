@@ -46,7 +46,7 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
-                    <TextBox x:Name="TextToGenerate" Grid.Row="0" AcceptsReturn="True" Height="120"/>
+                    <TextBox x:Name="TextToGenerate" Grid.Row="0" AcceptsReturn="True" Height="120" InputScope="Chat"/>
                     <Button Grid.Row="1" Click="GenerateQRCode_OnClick">生成</Button>
                     <Image x:Name="GeneratedQRCodeImage" Grid.Row="2" />
                 </Grid>

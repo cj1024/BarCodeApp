@@ -40,6 +40,10 @@ namespace BarCodeApp
         private void GenerateQRCode_OnClick(object sender, RoutedEventArgs e)
         {
             var content = TextToGenerate.Text;
+            if (string.IsNullOrEmpty(content))
+            {
+                return;
+            }
             var encoder = new QRCodeWriter();
             var tempResult = encoder.encode(content, BarcodeFormat.QR_CODE, 140, 140, new Dictionary<object, object> {{EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.H}});
             var bitmap = tempResult.GenerateWriteableBitmap(Colors.Transparent,Colors.White, Colors.Orange);
