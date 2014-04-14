@@ -236,8 +236,11 @@ namespace com.google.zxing.qrcode.detector
 			}
 			
 			FinderPattern[] patternInfo = selectBestPatterns();
+            if (patternInfo == null)
+		    {
+		        return null;
+		    }
 			ResultPoint.orderBestPatterns(patternInfo);
-			
 			return new FinderPatternInfo(patternInfo);
 		}
 		
@@ -599,7 +602,7 @@ namespace com.google.zxing.qrcode.detector
 			if (startSize < 3)
 			{
 				// Couldn't find enough finder patterns
-				throw ReaderException.Instance;
+			    return null;
 			}
 			
 			// Filter outlier possibilities whose module size is too different

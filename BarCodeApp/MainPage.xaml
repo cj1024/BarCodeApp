@@ -11,7 +11,8 @@
     FontSize="{StaticResource PhoneFontSizeNormal}"
     Foreground="{StaticResource PhoneForegroundBrush}"
     SupportedOrientations="Portrait" Orientation="Portrait"
-    shell:SystemTray.IsVisible="True" Loaded="PhoneApplicationPage_Loaded" Unloaded="PhoneApplicationPage_Unloaded">
+    shell:SystemTray.IsVisible="True"
+    >
 
     <!--LayoutRoot 是包含所有页面内容的根网格-->
     <Grid x:Name="LayoutRoot" Background="Transparent">
@@ -67,11 +68,15 @@
                         </Grid.Background>
                     </Grid>
                     <Grid Grid.Row="1">
-                        <TextBlock>
-                            <Run>扫描结果：</Run>
-                            <LineBreak/>
-                            <Run x:Name="ScanResultOuntput"/>
-                        </TextBlock>
+                        <RichTextBox TextWrapping="Wrap">
+                            <Paragraph>
+                                <Run>扫描结果：</Run>
+                                <LineBreak/>
+                                <Hyperlink Click="ScanResultClicked">
+                                    <Run x:Name="ScanResultOuntput"/>
+                                </Hyperlink>
+                            </Paragraph>
+                        </RichTextBox>
                     </Grid>
                 </Grid>
             </phone:PivotItem>

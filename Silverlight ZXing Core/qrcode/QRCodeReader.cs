@@ -78,6 +78,10 @@ namespace com.google.zxing.qrcode
 			else
 			{
 				DetectorResult detectorResult = new Detector(image.BlackMatrix).detect(hints);
+                if (detectorResult == null)
+                {
+                    return null;
+                }
 				decoderResult = decoder.decode(detectorResult.Bits);
 				points = detectorResult.Points;
 			}

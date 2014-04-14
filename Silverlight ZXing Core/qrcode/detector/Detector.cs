@@ -88,7 +88,10 @@ namespace com.google.zxing.qrcode.detector
 			
 			FinderPatternFinder finder = new FinderPatternFinder(image, resultPointCallback);
 			FinderPatternInfo info = finder.find(hints);
-			
+		    if (info == null)
+		    {
+		        return null;
+		    }
 			return processFinderPatternInfo(info);
 		}
 		

@@ -1,6 +1,8 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.IsolatedStorage;
+using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -10,6 +12,7 @@ using com.google.zxing.qrcode;
 using com.google.zxing.qrcode.decoder;
 using CtripWP7.PNGExtention;
 using Microsoft.Devices;
+using Microsoft.Phone.Tasks;
 
 namespace BarCodeApp
 {
@@ -27,16 +30,6 @@ namespace BarCodeApp
             //BuildLocalizedApplicationBar();
         }
 
-        private void PhoneApplicationPage_Loaded(object sender, RoutedEventArgs e)
-        {
-            HandleMainPivotSelectionChanged();
-        }
-
-        private void PhoneApplicationPage_Unloaded(object sender, RoutedEventArgs e)
-        {
-            StopCammera();
-        }
-
         private void GenerateQRCode_OnClick(object sender, RoutedEventArgs e)
         {
             var content = TextToGenerate.Text;
@@ -46,7 +39,7 @@ namespace BarCodeApp
             }
             var encoder = new QRCodeWriter();
             var tempResult = encoder.encode(content, BarcodeFormat.QR_CODE, 140, 140, new Dictionary<object, object> {{EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.H}});
-            var bitmap = tempResult.GenerateWriteableBitmap(Colors.Transparent,Colors.White, Colors.Orange);
+            var bitmap = tempResult.GenerateWriteableBitmap(Colors.Transparent, Colors.White, Colors.Orange);
             using (var stream = new IsolatedStorageFileStream("Shared/ShellContent/Test.png", FileMode.Create, IsolatedStorageFile.GetUserStoreForApplication()))
             {
                 bitmap.SavePng(stream);
@@ -59,7 +52,7 @@ namespace BarCodeApp
             HandleMainPivotSelectionChanged();
         }
 
-        void HandleMainPivotSelectionChanged()
+        private void HandleMainPivotSelectionChanged()
         {
             if (MainPivot.SelectedIndex == 1)
             {
@@ -73,7 +66,7 @@ namespace BarCodeApp
 
         private PhotoCamera _camera;
 
-        void StartCammera()
+        private void StartCammera()
         {
             if (Camera.IsCameraTypeSupported(CameraType.Primary))
             {
@@ -97,9 +90,9 @@ namespace BarCodeApp
             }
         }
 
-        void StopCammera()
+        private void StopCammera()
         {
-            if (_camera!=null)
+            if (_camera != null)
             {
                 _camera.CaptureThumbnailAvailable -= Camera_CaptureThumbnailAvailableAndNeedAddTask;
                 _camera.Dispose();
@@ -108,15 +101,19 @@ namespace BarCodeApp
             _camera = null;
         }
 
-        void StartCapture()
+        private void StartCapture()
         {
-            if (_camera != null)
-            {
-                _camera.CaptureImage();
-            }
+            ThreadPool.QueueUserWorkItem(p =>
+                                         {
+                                             Thread.Sleep(500);
+                                             if (_camera != null)
+                                             {
+                                                 _camera.CaptureImage();
+                                             }
+                                         });
         }
 
-        void StopCapture()
+        private void StopCapture()
         {
             if (_camera != null)
             {
@@ -125,12 +122,12 @@ namespace BarCodeApp
             _decodeManager.ClearQueuedTask();
         }
 
-        void Camera_CaptureCompletedAndNeedRestartCapture(object sender, CameraOperationCompletedEventArgs e)
+        private void Camera_CaptureCompletedAndNeedRestartCapture(object sender, CameraOperationCompletedEventArgs e)
         {
-            Dispatcher.BeginInvoke(StartCapture);
+            StartCapture();
         }
 
-        void Camera_CaptureThumbnailAvailableAndNeedAddTask(object sender, ContentReadyEventArgs e)
+        private void Camera_CaptureThumbnailAvailableAndNeedAddTask(object sender, ContentReadyEventArgs e)
         {
             if (_decodeManager.IsFree)
             {
@@ -143,14 +140,32 @@ namespace BarCodeApp
         private void Task_Decoded(object sender, BarcodeDecodeResult e)
         {
             Dispatcher.BeginInvoke(() =>
-            {
-                ScanResultOuntput.Text = e.Message;
-            });
+                                   {
+                                       ScanResultOuntput.Text = e.Message;
+                                   });
             if (e.Result == BarcodeDecodeResultType.Success)
             {
                 Dispatcher.BeginInvoke(StopCapture);
             }
         }
 
+        private void ScanResultClicked(object sender, RoutedEventArgs e)
+        {
+            Uri uri;
+            if (Uri.TryCreate(ScanResultOuntput.Text, UriKind.RelativeOrAbsolute, out uri))
+            {
+                if (uri.IsAbsoluteUri)
+                {
+                    new WebBrowserTask
+                    {
+                        Uri = uri
+                    }.Show();
+                }
+                else
+                {
+                    NavigationService.Navigate(uri);
+                }
+            }
+        }
     }
 }

@@ -13,8 +13,21 @@ namespace BarCodeApp.Util
 
     public enum BarcodeDecodeResultType
     {
+        /// <summary>
+        /// 未知异常
+        /// </summary>
         Unknown,
+        /// <summary>
+        /// 探测失败
+        /// </summary>
+        NotDetected,
+        /// <summary>
+        /// 解析失败
+        /// </summary>
         Fail,
+        /// <summary>
+        /// 成功
+        /// </summary>
         Success
     }
 
@@ -123,41 +136,46 @@ namespace BarCodeApp.Util
             image.SetSource(task.ImageStream);
             var bitmap = new WriteableBitmap(image);
             ThreadPool.QueueUserWorkItem(p =>
-            {
-                var result = BarcodeDecodeResultType.Unknown;
-                var message = string.Empty;
-                try
-                {
-                    var wb = bitmap;
-                    //Code from: btnReadTag_Click in "SLZXingQRSample\SLZXingQRSample\SLZXingSample\MainPage.xaml.vb"
-                    var qrRead = reader; // new com.google.zxing.qrcode.QRCodeReader();
-                    var luminiance = new RGBLuminanceSource(wb, wb.PixelWidth, wb.PixelHeight);
-                    var binarizer = new HybridBinarizer(luminiance);
-                    var binBitmap = new BinaryBitmap(binarizer);
-                    var results = qrRead.decode(binBitmap); //NOTE: will throw exception if cannot decode image.
-                    result = BarcodeDecodeResultType.Success;
-                    message = results.Text;
-                }
-                catch (Exception ex)
-                {
-                    if (ex is ReaderException)
-                    {
-                        result = BarcodeDecodeResultType.Fail;
-                        message = "Error: Cannot decode barcode image. Please make sure scan mode is correct and try again.";
-                    }
-                    else
-                    {
-                        result = BarcodeDecodeResultType.Unknown;
-                        message = String.Format("Barcode Library Processing Error: {0}\r\n{1}", ex.GetType(), ex.Message);
-                    }
-                }
-                finally
-                {
-                    task.HandleResult(new BarcodeDecodeResult(result, message));
-                    _availableReader.Enqueue(reader);
-                    TryStartTask();
-                }
-            });
+                                         {
+                                             var result = BarcodeDecodeResultType.Unknown;
+                                             var message = string.Empty;
+                                             try
+                                             {
+                                                 var wb = bitmap;
+                                                 //Code from: btnReadTag_Click in "SLZXingQRSample\SLZXingQRSample\SLZXingSample\MainPage.xaml.vb"
+                                                 var qrRead = reader; // new com.google.zxing.qrcode.QRCodeReader();
+                                                 var luminiance = new RGBLuminanceSource(wb, wb.PixelWidth, wb.PixelHeight);
+                                                 var binarizer = new HybridBinarizer(luminiance);
+                                                 var binBitmap = new BinaryBitmap(binarizer);
+                                                 var results = qrRead.decode(binBitmap); //NOTE: will throw exception if cannot decode image.
+                                                 if (results == null)
+                                                 {
+                                                     result = BarcodeDecodeResultType.NotDetected;
+                                                     message = "Error: Cannot detect barcode image. Please make sure scan mode is correct and try again.";
+                                                 }
+                                                 else
+                                                 {
+                                                     result = BarcodeDecodeResultType.Success;
+                                                     message = results.Text;
+                                                 }
+                                             }
+                                             catch (ReaderException)
+                                             {
+                                                 result = BarcodeDecodeResultType.Fail;
+                                                 message = "Error: Cannot decode barcode image. Please make sure scan mode is correct and try again.";
+                                             }
+                                             catch (Exception ex)
+                                             {
+                                                 result = BarcodeDecodeResultType.Unknown;
+                                                 message = String.Format("Barcode Library Processing Error: {0}\r\n{1}", ex.GetType(), ex.Message);
+                                             }
+                                             finally
+                                             {
+                                                 task.HandleResult(new BarcodeDecodeResult(result, message));
+                                                 _availableReader.Enqueue(reader);
+                                                 TryStartTask();
+                                             }
+                                         });
         }
 
         public void ClearQueuedTask()
