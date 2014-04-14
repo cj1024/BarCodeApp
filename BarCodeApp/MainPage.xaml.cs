@@ -2,10 +2,10 @@
 using System.Collections.Generic;
 using System.IO;
 using System.IO.IsolatedStorage;
-using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Navigation;
 using BarCodeApp.Util;
 using com.google.zxing;
 using com.google.zxing.qrcode;
@@ -28,6 +28,18 @@ namespace BarCodeApp
 
             // 用于本地化 ApplicationBar 的示例代码
             //BuildLocalizedApplicationBar();
+        }
+
+        protected override void OnNavigatedTo(NavigationEventArgs e)
+        {
+            base.OnNavigatedTo(e);
+            HandleMainPivotSelectionChanged();
+        }
+
+        protected override void OnNavigatingFrom(NavigatingCancelEventArgs e)
+        {
+            base.OnNavigatingFrom(e);
+            StopCammera();
         }
 
         private void GenerateQRCode_OnClick(object sender, RoutedEventArgs e)
@@ -64,37 +76,37 @@ namespace BarCodeApp
             }
         }
 
-        private PhotoCamera _camera;
+        private BarCodeCamera _camera;
 
         private void StartCammera()
         {
             if (Camera.IsCameraTypeSupported(CameraType.Primary))
             {
-                _camera = new PhotoCamera(CameraType.Primary);
-                CameraPreviewRotation.Angle = _camera.Orientation;
-                _camera.Initialized += (sender, e) =>
-                                       {
-                                           if (_camera.PreviewResolution.Width < BarcodeDecodeManager.MinPictureWidth || _camera.PreviewResolution.Height < BarcodeDecodeManager.MinPictureHeight)
-                                           {
-                                               _camera.CaptureThumbnailAvailable += Camera_CaptureThumbnailAvailableAndNeedAddTask;
-                                           }
-                                           else
-                                           {
-                                               _camera.CaptureImageAvailable += Camera_CaptureThumbnailAvailableAndNeedAddTask;
-                                           }
-                                           _camera.CaptureCompleted += Camera_CaptureCompletedAndNeedRestartCapture;
-                                           _camera.FlashMode = FlashMode.Off;
-                                           StartCapture();
-                                       };
-                CameraPreview.SetSource(_camera);
+                var camera = new PhotoCamera(CameraType.Primary);
+                if (_camera != null)
+                {
+                    _camera.GetBuffImage -= Camera_GetBuffImage;
+                    _camera.Dispose();
+                }
+                _camera = new BarCodeCamera(camera);
+                _camera.GetBuffImage += Camera_GetBuffImage;
+                camera.Initialized += (sender, e) => Dispatcher.BeginInvoke(StartCapture);
+                CameraPreviewRotation.Angle = camera.Orientation;
+                CameraPreview.SetSource(camera);
             }
+        }
+
+        private void Camera_GetBuffImage(object sender, BarCodeCameraContentReadyEventArgs e)
+        {
+            var task = new BarcodeDecodeTask(e.ImageStream);
+            task.Decoded += Task_Decoded;
+            _decodeManager.AddTask(task);
         }
 
         private void StopCammera()
         {
             if (_camera != null)
             {
-                _camera.CaptureThumbnailAvailable -= Camera_CaptureThumbnailAvailableAndNeedAddTask;
                 _camera.Dispose();
             }
             StopCapture();
@@ -103,38 +115,19 @@ namespace BarCodeApp
 
         private void StartCapture()
         {
-            ThreadPool.QueueUserWorkItem(p =>
-                                         {
-                                             Thread.Sleep(500);
-                                             if (_camera != null)
-                                             {
-                                                 _camera.CaptureImage();
-                                             }
-                                         });
+            if (_camera != null)
+            {
+                _camera.Start(TimeSpan.FromMilliseconds(100));
+            }
         }
 
         private void StopCapture()
         {
             if (_camera != null)
             {
-                _camera.CaptureCompleted -= Camera_CaptureCompletedAndNeedRestartCapture;
+                _camera.Stop();
             }
             _decodeManager.ClearQueuedTask();
-        }
-
-        private void Camera_CaptureCompletedAndNeedRestartCapture(object sender, CameraOperationCompletedEventArgs e)
-        {
-            StartCapture();
-        }
-
-        private void Camera_CaptureThumbnailAvailableAndNeedAddTask(object sender, ContentReadyEventArgs e)
-        {
-            if (_decodeManager.IsFree)
-            {
-                var task = new BarcodeDecodeTask(e.ImageStream);
-                task.Decoded += Task_Decoded;
-                _decodeManager.AddTask(task);
-            }
         }
 
         private void Task_Decoded(object sender, BarcodeDecodeResult e)
@@ -145,6 +138,7 @@ namespace BarCodeApp
                                    });
             if (e.Result == BarcodeDecodeResultType.Success)
             {
+                ((BarcodeDecodeTask) sender).ImageStream.Dispose();
                 Dispatcher.BeginInvoke(StopCapture);
             }
         }
@@ -168,4 +162,5 @@ namespace BarCodeApp
             }
         }
     }
+
 }
